@@ -1,8 +1,6 @@
-package com.allertSystem;
+package com.allert;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.*;
 
 import java.util.*;
 
@@ -39,7 +37,7 @@ class AlertNetworkIntegrationTest {
 
         // Test alert propagation path
         List<String> path = network.findAlertPropagationPath("A", "C");
-        assertTrue(path.size() == 3);
+        assertEquals(3, path.size());
         assertEquals("A", path.get(0));
         assertEquals("C", path.get(2));
 
@@ -49,10 +47,10 @@ class AlertNetworkIntegrationTest {
 
         // Test containment edges
         Set<String> servicesToContain = new HashSet<>(Arrays.asList("A", "B", "D"));
-        Set<Edge> containmentEdges = network.suggestContainmentEdges(servicesToContain);
-        assertEquals(2, containmentEdges.size());
-        assertTrue(containmentEdges.stream().anyMatch(e -> e.getSource().equals("B") && e.getTarget().equals("C")));
-        assertTrue(containmentEdges.stream().anyMatch(e -> e.getSource().equals("D") && e.getTarget().equals("C")));
+        Set<AlertPropagation> containmentAlertPropagations = network.suggestContainmentEdges(servicesToContain);
+        assertEquals(2, containmentAlertPropagations.size());
+        assertTrue(containmentAlertPropagations.stream().anyMatch(e -> e.getSource().equals("B") && e.getTarget().equals("C")));
+        assertTrue(containmentAlertPropagations.stream().anyMatch(e -> e.getSource().equals("D") && e.getTarget().equals("C")));
     }
 
     @Test
@@ -128,17 +126,17 @@ class AlertNetworkIntegrationTest {
 
         // Test containment for different service sets
         Set<String> services1 = new HashSet<>(Arrays.asList("A", "B", "C"));
-        Set<Edge> containment1 = network.suggestContainmentEdges(services1);
+        Set<AlertPropagation> containment1 = network.suggestContainmentEdges(services1);
         assertEquals(1, containment1.size());
         assertTrue(containment1.stream().anyMatch(e -> e.getSource().equals("C") && e.getTarget().equals("D")));
 
         Set<String> services2 = new HashSet<>(Arrays.asList("A", "E", "F"));
-        Set<Edge> containment2 = network.suggestContainmentEdges(services2);
+        Set<AlertPropagation> containment2 = network.suggestContainmentEdges(services2);
         assertEquals(1, containment2.size());
         assertTrue(containment2.stream().anyMatch(e -> e.getSource().equals("F") && e.getTarget().equals("D")));
 
         Set<String> services3 = new HashSet<>(Arrays.asList("B", "G"));
-        Set<Edge> containment3 = network.suggestContainmentEdges(services3);
+        Set<AlertPropagation> containment3 = network.suggestContainmentEdges(services3);
         assertEquals(1, containment3.size());
         assertTrue(containment3.stream().anyMatch(e -> e.getSource().equals("G") && e.getTarget().equals("H")));
     }
@@ -171,7 +169,7 @@ class AlertNetworkIntegrationTest {
 
         // Test shortest path
         List<String> path = network.findAlertPropagationPath("A", "D");
-        assertTrue(path.size() == 4);
+        assertEquals(4, path.size());
         assertEquals("A", path.get(0));
         assertEquals("D", path.get(3));
 
@@ -181,7 +179,7 @@ class AlertNetworkIntegrationTest {
 
         // Test containment
         Set<String> services = new HashSet<>(Arrays.asList("A", "B", "E"));
-        Set<Edge> containment = network.suggestContainmentEdges(services);
+        Set<AlertPropagation> containment = network.suggestContainmentEdges(services);
         assertEquals(3, containment.size());
         assertTrue(containment.stream().anyMatch(e -> e.getSource().equals("C") && e.getTarget().equals("D")));
         assertTrue(containment.stream().anyMatch(e -> e.getSource().equals("F") && e.getTarget().equals("D")));

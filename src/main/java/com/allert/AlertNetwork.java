@@ -1,7 +1,6 @@
-package com.allertSystem;
+package com.allert;
 
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Interface representing a network of services with dependencies.
@@ -60,7 +59,7 @@ public interface AlertNetwork {
      * @throws IllegalArgumentException if services set is null or empty,
      *         or if any service doesn't exist in the network
      */
-    Set<Edge> suggestContainmentEdges(Set<String> services);
+    Set<AlertPropagation> suggestContainmentEdges(Set<String> services);
 
     /**
      * Reconstructs the ordered list of services based on their dependencies.

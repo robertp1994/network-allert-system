@@ -1,7 +1,7 @@
-package com.allertSystem.cache;
+package com.allert.cache;
 
-import com.allertSystem.Edge;
-import lombok.RequiredArgsConstructor;
+import com.allert.*;
+import lombok.*;
 
 import java.util.*;
 
@@ -12,7 +12,7 @@ import java.util.*;
 public class NetworkCache {
     private final Map<String, Set<String>> affectedServicesCache = new HashMap<>();
     private final Map<String, List<String>> propagationPathCache = new HashMap<>();
-    private final Map<String, Set<Edge>> containmentEdgesCache = new HashMap<>();
+    private final Map<String, Set<AlertPropagation>> containmentEdgesCache = new HashMap<>();
 
     public Optional<Set<String>> getAffectedServices(String serviceName) {
         return Optional.ofNullable(affectedServicesCache.get(serviceName))
@@ -40,13 +40,13 @@ public class NetworkCache {
         return String.join(",", sorted);
     }
 
-    public Optional<Set<Edge>> getContainmentEdges(Set<String> services) {
+    public Optional<Set<AlertPropagation>> getContainmentEdges(Set<String> services) {
         return Optional.ofNullable(containmentEdgesCache.get(keyForServices(services)))
                 .map(HashSet::new);
     }
 
-    public void putContainmentEdges(Set<String> services, Set<Edge> edges) {
-        containmentEdgesCache.put(keyForServices(services), new HashSet<>(edges));
+    public void putContainmentEdges(Set<String> services, Set<AlertPropagation> alertPropagations) {
+        containmentEdgesCache.put(keyForServices(services), new HashSet<>(alertPropagations));
     }
 
     public void clear() {

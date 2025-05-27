@@ -1,10 +1,8 @@
-package com.allertSystem;
+package com.allert;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.*;
+import org.junit.jupiter.params.provider.*;
 
 import java.util.*;
 
@@ -99,12 +97,12 @@ class AlertNetworkImplTest {
         network.addDependency("B", "C");
 
         Set<String> services = new HashSet<>(Arrays.asList("A", "B"));
-        Set<Edge> containmentEdges = network.suggestContainmentEdges(services);
+        Set<AlertPropagation> containmentAlertPropagations = network.suggestContainmentEdges(services);
 
-        assertEquals(1, containmentEdges.size());
-        Edge edge = containmentEdges.iterator().next();
-        assertEquals("B", edge.getSource());
-        assertEquals("C", edge.getTarget());
+        assertEquals(1, containmentAlertPropagations.size());
+        AlertPropagation alertPropagation = containmentAlertPropagations.iterator().next();
+        assertEquals("B", alertPropagation.getSource());
+        assertEquals("C", alertPropagation.getTarget());
     }
 
     @Test

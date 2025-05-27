@@ -1,12 +1,11 @@
-package com.allertSystem;
+package com.allert;
 
-import com.allertSystem.cache.NetworkCache;
-import com.allertSystem.validation.ServiceValidator;
-import lombok.RequiredArgsConstructor;
+import com.allert.cache.*;
+import com.allert.validation.*;
+import lombok.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.stream.*;
 
 /**
  * Implementation of the AlertNetwork interface using adjacency list representation.
@@ -14,16 +13,16 @@ import java.util.stream.Stream;
  */
 @RequiredArgsConstructor
 public class AlertNetworkImpl implements AlertNetwork {
-    private final Map<String, Set<String>> adjacencyList = new HashMap<>();
-    private final Map<String, Set<String>> reverseAdjacencyList = new HashMap<>();
-    private final ServiceValidator validator = new ServiceValidator(adjacencyList);
+    private final Map<String, Set<String>> serviceDependencies = new HashMap<>();
+    private final Map<String, Set<String>> reverseServiceDependencies = new HashMap<>();
+    private final ServiceValidator validator = new ServiceValidator(serviceDependencies);
     private final NetworkCache cache = new NetworkCache();
 
     @Override
     public void addService(String serviceName) {
         validator.validateServiceName(serviceName);
-        adjacencyList.putIfAbsent(serviceName, new HashSet<>());
-        reverseAdjacencyList.putIfAbsent(serviceName, new HashSet<>());
+        serviceDependencies.putIfAbsent(serviceName, new HashSet<>());
+        reverseServiceDependencies.putIfAbsent(serviceName, new HashSet<>());
         cache.clear();
     }
 
@@ -33,9 +32,9 @@ public class AlertNetworkImpl implements AlertNetwork {
         validator.validateServiceName(dependencyName);
         validator.validateServiceExists(serviceName);
         validator.validateServiceExists(dependencyName);
-        
-        adjacencyList.get(serviceName).add(dependencyName);
-        reverseAdjacencyList.get(dependencyName).add(serviceName);
+
+        serviceDependencies.get(serviceName).add(dependencyName);
+        reverseServiceDependencies.get(dependencyName).add(serviceName);
         cache.clear();
     }
 
@@ -43,8 +42,8 @@ public class AlertNetworkImpl implements AlertNetwork {
     public Set<String> getDependencies(String serviceName) {
         validator.validateServiceName(serviceName);
         validator.validateServiceExists(serviceName);
-        
-        return new HashSet<>(adjacencyList.get(serviceName));
+
+        return Set.copyOf(serviceDependencies.get(serviceName));
     }
 
     @Override
@@ -54,11 +53,11 @@ public class AlertNetworkImpl implements AlertNetwork {
         validator.validateServiceExists(sourceService);
         validator.validateServiceExists(targetService);
 
-        return cache.getPropagationPath(sourceService, targetService)
-                .orElseGet(() -> findAndCachePropagationPath(sourceService, targetService));
+        return cache.getPropagationPath(sourceService, targetService).orElseGet(() ->
+                findPropagationPath(sourceService, targetService));
     }
 
-    private List<String> findAndCachePropagationPath(String sourceService, String targetService) {
+    private List<String> findPropagationPath(String sourceService, String targetService) {
         Map<String, String> previous = new HashMap<>();
         Queue<String> queue = new LinkedList<>();
         Set<String> visited = new HashSet<>();
@@ -69,11 +68,11 @@ public class AlertNetworkImpl implements AlertNetwork {
         while (!queue.isEmpty()) {
             String current = queue.poll();
             if (current.equals(targetService)) {
-                List<String> path = reconstructPath(previous, sourceService, targetService);
+                List<String> path = reconstructPath(previous, targetService);
                 cache.putPropagationPath(sourceService, targetService, path);
                 return path;
             }
-            for (String dependency : adjacencyList.get(current)) {
+            for (String dependency : serviceDependencies.get(current)) {
                 if (!visited.contains(dependency)) {
                     visited.add(dependency);
                     previous.put(dependency, current);
@@ -91,28 +90,25 @@ public class AlertNetworkImpl implements AlertNetwork {
         validator.validateServiceName(serviceName);
         validator.validateServiceExists(serviceName);
 
-        return cache.getAffectedServices(serviceName)
-                .orElseGet(() -> findAndCacheAffectedServices(serviceName));
+        return cache.getAffectedServices(serviceName).orElseGet(() -> findAndCacheAffectedServices(serviceName));
     }
 
     private Set<String> findAndCacheAffectedServices(String serviceName) {
         Set<String> affected = new HashSet<>();
         Set<String> visited = new HashSet<>();
         Stack<String> stack = new Stack<>();
-        
+
         stack.push(serviceName);
         visited.add(serviceName);
         affected.add(serviceName);
 
         while (!stack.isEmpty()) {
             String current = stack.pop();
-            adjacencyList.get(current).stream()
-                .filter(dependency -> !visited.contains(dependency))
-                .forEach(dependency -> {
-                    visited.add(dependency);
-                    affected.add(dependency);
-                    stack.push(dependency);
-                });
+            serviceDependencies.get(current).stream().filter(dependency -> !visited.contains(dependency)).forEach(dependency -> {
+                visited.add(dependency);
+                affected.add(dependency);
+                stack.push(dependency);
+            });
         }
 
         cache.putAffectedServices(serviceName, affected);
@@ -120,38 +116,33 @@ public class AlertNetworkImpl implements AlertNetwork {
     }
 
     @Override
-    public Set<Edge> suggestContainmentEdges(Set<String> services) {
+    public Set<AlertPropagation> suggestContainmentEdges(Set<String> services) {
         validator.validateServicesSet(services);
 
-        return cache.getContainmentEdges(services)
-                .orElseGet(() -> findAndCacheContainmentEdges(services));
+        return cache.getContainmentEdges(services).orElseGet(() -> findAndCacheContainmentEdges(services));
     }
 
-    private Set<Edge> findAndCacheContainmentEdges(Set<String> services) {
-        Set<Edge> containmentEdges = new HashSet<>();
+    private Set<AlertPropagation> findAndCacheContainmentEdges(Set<String> services) {
+        Set<AlertPropagation> containmentAlertPropagations = new HashSet<>();
         Set<String> servicesSet = new HashSet<>(services);
-        
+
         servicesSet.forEach(start -> {
             Set<String> visited = new HashSet<>();
             Deque<String> stack = new ArrayDeque<>();
             stack.push(start);
-            
+
             while (!stack.isEmpty()) {
                 String current = stack.pop();
                 if (!visited.add(current)) continue;
-                
-                adjacencyList.get(current).stream()
-                    .filter(dep -> !servicesSet.contains(dep))
-                    .forEach(dep -> containmentEdges.add(new Edge(current, dep)));
-                    
-                adjacencyList.get(current).stream()
-                    .filter(dep -> servicesSet.contains(dep))
-                    .forEach(stack::push);
+
+                serviceDependencies.get(current).stream().filter(dep -> !servicesSet.contains(dep)).forEach(dep -> containmentAlertPropagations.add(new AlertPropagation(current, dep)));
+
+                serviceDependencies.get(current).stream().filter(servicesSet::contains).forEach(stack::push);
             }
         });
-        
-        cache.putContainmentEdges(services, containmentEdges);
-        return containmentEdges;
+
+        cache.putContainmentEdges(services, containmentAlertPropagations);
+        return containmentAlertPropagations;
     }
 
     @Override
@@ -160,12 +151,11 @@ public class AlertNetworkImpl implements AlertNetwork {
         Set<String> temp = new HashSet<>();
         List<String> order = new ArrayList<>();
 
-        for (String service : adjacencyList.keySet()) {
-            if (!visited.contains(service)) {
-                if (!topologicalSort(service, visited, temp, order)) {
+        for (String service : serviceDependencies.keySet()) {
+            if (!visited.contains(service) && topologicalSort(service, visited, temp, order)) {
                     throw new IllegalStateException("Circular dependency detected");
                 }
-            }
+
         }
 
         return order;
@@ -173,26 +163,25 @@ public class AlertNetworkImpl implements AlertNetwork {
 
     private boolean topologicalSort(String service, Set<String> visited, Set<String> temp, List<String> order) {
         if (temp.contains(service)) {
-            return false; // Circular dependency detected
+            return true; // Circular dependency detected
         }
         if (visited.contains(service)) {
-            return true;
+            return false;
         }
 
         temp.add(service);
-        for (String dependency : adjacencyList.get(service)) {
-            if (!topologicalSort(dependency, visited, temp, order)) {
-                return false;
+        for (String dependency : serviceDependencies.get(service)) {
+            if (topologicalSort(dependency, visited, temp, order)) {
+                return true;
             }
         }
         temp.remove(service);
         visited.add(service);
         order.add(service);
-        return true;
+        return false;
     }
 
-    private List<String> reconstructPath(Map<String, String> previous, String source, String target) {
-        return Stream.iterate(target, Objects::nonNull, previous::get)
-            .collect(Collectors.toList());
+    private List<String> reconstructPath(Map<String, String> previous, String target) {
+        return Stream.iterate(target, Objects::nonNull, previous::get).toList();
     }
 } 

@@ -1,16 +1,15 @@
-package com.allertSystem.validation;
+package com.allert.validation;
 
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Utility class for validating service-related operations.
  */
 @RequiredArgsConstructor
 public class ServiceValidator {
-    private final Map<String, Set<String>> adjacencyList;
+    private final Map<String, Set<String>> serviceDependencies;
 
     public void validateServiceName(String serviceName) {
         if (serviceName == null || serviceName.trim().isEmpty()) {
@@ -19,7 +18,7 @@ public class ServiceValidator {
     }
 
     public void validateServiceExists(String serviceName) {
-        if (!adjacencyList.containsKey(serviceName)) {
+        if (!serviceDependencies.containsKey(serviceName)) {
             throw new IllegalArgumentException("Service " + serviceName + " does not exist in the network");
         }
     }
