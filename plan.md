@@ -1,40 +1,34 @@
-# Plan implementacji Network Alert System
+# Plan implementacji dokumentacji algorytmów
 
-## 1. Przygotowanie struktury projektu
+## Etapy:
 
-- [x] Utworzenie podstawowej struktury projektu Maven
-- [x] Konfiguracja zależności i narzędzi testowych
-- [x] Utworzenie interfejsu AlertNetwork
-- [x] Utworzenie klasy implementującej interfejs
+1. [x] Opis algorytmu BFS (Breadth-First Search)
+    - Zasada działania
+    - Złożoność czasowa i pamięciowa
+    - Przykłady zastosowania
+    - Implementacja pseudokod
 
-## 2. Implementacja podstawowych struktur danych
+2. [x] Opis algorytmu DFS (Depth-First Search)
+    - Zasada działania
+    - Złożoność czasowa i pamięciowa
+    - Przykłady zastosowania
+    - Implementacja pseudokod
 
-- [x] Implementacja reprezentacji grafu (Map<String, Set<String>> dla zależności)
-- [x] Implementacja metod pomocniczych (addService, addDependency, getDependencies)
-- [x] Dodanie walidacji danych wejściowych
+3. [x] Opis algorytmu Dijkstry
+    - Zasada działania
+    - Złożoność czasowa i pamięciowa
+    - Przykłady zastosowania
+    - Implementacja pseudokod
 
-## 3. Implementacja algorytmów propagacji alertów
+4. [x] Opis algorytmu A*
+    - Zasada działania
+    - Złożoność czasowa i pamięciowa
+    - Przykłady zastosowania
+    - Implementacja pseudokod
 
-- [x] Implementacja findAlertPropagationPath (BFS dla najkrótszej ścieżki)
-- [x] Implementacja getAffectedServices (DFS dla pełnej analizy zasięgu)
-- [x] Implementacja suggestContainmentEdges (analiza krytycznych krawędzi)
+## Format dokumentacji:
 
-## 4. Testy i optymalizacja
-
-- [x] Implementacja testów jednostkowych
-- [x] Implementacja testów integracyjnych
-- [x] Optymalizacja wydajności
-- [x] Refaktoryzacja kodu
-
-## 5. Dokumentacja
-
-- [x] Dokumentacja kodu (JavaDoc)
-- [x] Dokumentacja algorytmów
-- [ ] Przykłady użycia
-- [ ] Instrukcja instalacji i uruchomienia
-
-## 6. Bonus - Reconstruct Ordered List
-
-- [x] Implementacja metody reconstructOrder
-- [x] Testy dla reconstructOrder
-- [x] Optymalizacja rozwiązania 
+- Każdy algorytm będzie opisany w sekcji docs/ALGORITHMS.md
+- Dokumentacja będzie zawierać zarówno opis teoretyczny jak i praktyczne przykłady
+- Kod będzie w formie pseudokodu dla lepszej czytelności
+- Dodane zostaną diagramy ilustrujące działanie algorytmów 

@@ -1,187 +1,143 @@
 package com.allert;
 
-import com.allert.cache.*;
 import com.allert.validation.*;
+import javafx.util.*;
 import lombok.*;
 
 import java.util.*;
-import java.util.stream.*;
 
-/**
- * Implementation of the AlertNetwork interface using adjacency list representation.
- * Optimized with caching and improved algorithms.
- */
 @RequiredArgsConstructor
 public class AlertNetworkImpl implements AlertNetwork {
     private final Map<String, Set<String>> serviceDependencies = new HashMap<>();
-    private final Map<String, Set<String>> reverseServiceDependencies = new HashMap<>();
     private final ServiceValidator validator = new ServiceValidator(serviceDependencies);
-    private final NetworkCache cache = new NetworkCache();
 
     @Override
-    public void addService(String serviceName) {
-        validator.validateServiceName(serviceName);
-        serviceDependencies.putIfAbsent(serviceName, new HashSet<>());
-        reverseServiceDependencies.putIfAbsent(serviceName, new HashSet<>());
-        cache.clear();
+    public void addService(String service) {
+        validator.validateServiceName(service);
+        serviceDependencies.putIfAbsent(service, new HashSet<>());
     }
 
     @Override
-    public void addDependency(String serviceName, String dependencyName) {
-        validator.validateServiceName(serviceName);
-        validator.validateServiceName(dependencyName);
-        validator.validateServiceExists(serviceName);
-        validator.validateServiceExists(dependencyName);
+    public void addDependency(String fromService, String toService) {
+        validator.validateServiceName(fromService);
+        validator.validateServiceName(toService);
+        validator.validateServiceExists(fromService);
+        validator.validateServiceExists(toService);
 
-        serviceDependencies.get(serviceName).add(dependencyName);
-        reverseServiceDependencies.get(dependencyName).add(serviceName);
-        cache.clear();
+        serviceDependencies.get(fromService).add(toService);
     }
 
     @Override
-    public Set<String> getDependencies(String serviceName) {
-        validator.validateServiceName(serviceName);
-        validator.validateServiceExists(serviceName);
+    public List<String> getDependencies(String service) {
+        validator.validateServiceName(service);
+        validator.validateServiceExists(service);
 
-        return Set.copyOf(serviceDependencies.get(serviceName));
+        return serviceDependencies.get(service).stream().toList();
     }
 
     @Override
-    public List<String> findAlertPropagationPath(String sourceService, String targetService) {
-        validator.validateServiceName(sourceService);
-        validator.validateServiceName(targetService);
-        validator.validateServiceExists(sourceService);
-        validator.validateServiceExists(targetService);
+    public List<String> findAlertPropagationPath(String source, String target) {
+        validator.validateServiceName(source);
+        validator.validateServiceName(target);
+        validator.validateServiceExists(source);
+        validator.validateServiceExists(target);
 
-        return cache.getPropagationPath(sourceService, targetService).orElseGet(() ->
-                findPropagationPath(sourceService, targetService));
-    }
-
-    private List<String> findPropagationPath(String sourceService, String targetService) {
         Map<String, String> previous = new HashMap<>();
         Queue<String> queue = new LinkedList<>();
         Set<String> visited = new HashSet<>();
 
-        queue.offer(sourceService);
-        visited.add(sourceService);
+        queue.offer(source);
+        visited.add(source);
 
         while (!queue.isEmpty()) {
             String current = queue.poll();
-            if (current.equals(targetService)) {
-                List<String> path = reconstructPath(previous, targetService);
-                cache.putPropagationPath(sourceService, targetService, path);
-                return path;
+            if (current.equals(target)) {
+                return reconstructPath(previous, target);
             }
-            for (String dependency : serviceDependencies.get(current)) {
-                if (!visited.contains(dependency)) {
-                    visited.add(dependency);
-                    previous.put(dependency, current);
-                    queue.offer(dependency);
-                }
-            }
+            serviceDependencies.get(current).stream().filter(dependency -> !visited.contains(dependency)).forEach(dependency -> {
+                visited.add(dependency);
+                previous.put(dependency, current);
+                queue.offer(dependency);
+            });
         }
-        List<String> emptyPath = Collections.emptyList();
-        cache.putPropagationPath(sourceService, targetService, emptyPath);
-        return emptyPath;
+        return Collections.emptyList();
     }
 
     @Override
-    public Set<String> getAffectedServices(String serviceName) {
-        validator.validateServiceName(serviceName);
-        validator.validateServiceExists(serviceName);
+    public List<String> getAffectedServices(String source) {
+        validator.validateServiceName(source);
+        validator.validateServiceExists(source);
 
-        return cache.getAffectedServices(serviceName).orElseGet(() -> findAndCacheAffectedServices(serviceName));
-    }
-
-    private Set<String> findAndCacheAffectedServices(String serviceName) {
         Set<String> affected = new HashSet<>();
         Set<String> visited = new HashSet<>();
-        Stack<String> stack = new Stack<>();
+        Deque<String> stack = new ArrayDeque<>();
 
-        stack.push(serviceName);
-        visited.add(serviceName);
-        affected.add(serviceName);
+        stack.push(source);
+        visited.add(source);
+        affected.add(source);
 
         while (!stack.isEmpty()) {
             String current = stack.pop();
-            serviceDependencies.get(current).stream().filter(dependency -> !visited.contains(dependency)).forEach(dependency -> {
-                visited.add(dependency);
-                affected.add(dependency);
-                stack.push(dependency);
+            serviceDependencies.get(current).stream()
+                    .filter(dependency -> !visited.contains(dependency)).forEach(dependency -> {
+                        visited.add(dependency);
+                        affected.add(dependency);
+                        stack.push(dependency);
+                    });
+        }
+
+        return affected.stream().toList();
+    }
+
+    @Override
+    public List<Pair<String, String>> suggestContainmentEdges(String source) {
+        validator.validateServiceName(source);
+        validator.validateServiceExists(source);
+
+        Map<Pair<String, String>, Integer> edgeDownstreamCount = new HashMap<>();
+        Set<String> visited = new HashSet<>();
+        Deque<String> stack = new ArrayDeque<>();
+        stack.push(source);
+
+        while (!stack.isEmpty()) {
+            String current = stack.pop();
+            if (!visited.add(current)) continue;
+
+            serviceDependencies.get(current).forEach(dep -> {
+                // Skip edges directly connected to source
+                if (!current.equals(source)) {
+                    // Count downstream systems
+                    Set<String> downstream = new HashSet<>();
+                    Deque<String> downstreamStack = new ArrayDeque<>();
+                    downstreamStack.push(dep);
+
+                    while (!downstreamStack.isEmpty()) {
+                        String downstreamService = downstreamStack.pop();
+                        if (downstream.add(downstreamService)) {
+                            serviceDependencies.get(downstreamService).forEach(downstreamStack::push);
+                        }
+                    }
+
+                    edgeDownstreamCount.put(new Pair<>(current, dep), downstream.size());
+                }
+                stack.push(dep);
             });
         }
 
-        cache.putAffectedServices(serviceName, affected);
-        return affected;
-    }
-
-    @Override
-    public Set<AlertPropagation> suggestContainmentEdges(Set<String> services) {
-        validator.validateServicesSet(services);
-
-        return cache.getContainmentEdges(services).orElseGet(() -> findAndCacheContainmentEdges(services));
-    }
-
-    private Set<AlertPropagation> findAndCacheContainmentEdges(Set<String> services) {
-        Set<AlertPropagation> containmentAlertPropagations = new HashSet<>();
-        Set<String> servicesSet = new HashSet<>(services);
-
-        servicesSet.forEach(start -> {
-            Set<String> visited = new HashSet<>();
-            Deque<String> stack = new ArrayDeque<>();
-            stack.push(start);
-
-            while (!stack.isEmpty()) {
-                String current = stack.pop();
-                if (!visited.add(current)) continue;
-
-                serviceDependencies.get(current).stream().filter(dep -> !servicesSet.contains(dep)).forEach(dep -> containmentAlertPropagations.add(new AlertPropagation(current, dep)));
-
-                serviceDependencies.get(current).stream().filter(servicesSet::contains).forEach(stack::push);
-            }
-        });
-
-        cache.putContainmentEdges(services, containmentAlertPropagations);
-        return containmentAlertPropagations;
-    }
-
-    @Override
-    public List<String> reconstructOrder() {
-        Set<String> visited = new HashSet<>();
-        Set<String> temp = new HashSet<>();
-        List<String> order = new ArrayList<>();
-
-        for (String service : serviceDependencies.keySet()) {
-            if (!visited.contains(service) && topologicalSort(service, visited, temp, order)) {
-                    throw new IllegalStateException("Circular dependency detected");
-                }
-
-        }
-
-        return order;
-    }
-
-    private boolean topologicalSort(String service, Set<String> visited, Set<String> temp, List<String> order) {
-        if (temp.contains(service)) {
-            return true; // Circular dependency detected
-        }
-        if (visited.contains(service)) {
-            return false;
-        }
-
-        temp.add(service);
-        for (String dependency : serviceDependencies.get(service)) {
-            if (topologicalSort(dependency, visited, temp, order)) {
-                return true;
-            }
-        }
-        temp.remove(service);
-        visited.add(service);
-        order.add(service);
-        return false;
+        return edgeDownstreamCount.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(entry -> List.of(entry.getKey()))
+                .orElse(List.of());
     }
 
     private List<String> reconstructPath(Map<String, String> previous, String target) {
-        return Stream.iterate(target, Objects::nonNull, previous::get).toList();
+        List<String> path = new ArrayList<>();
+        String current = target;
+        while (current != null) {
+            path.add(current);
+            current = previous.get(current);
+        }
+        Collections.reverse(path);
+        return path;
     }
 } 

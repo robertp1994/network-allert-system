@@ -1,139 +1,257 @@
-# Network Alert System - Technical Documentation
+## Algorytmy
 
-## Overview
+### BFS (Breadth-First Search)
 
-The Network Alert System implements a directed graph-based solution for managing service dependencies and alert
-propagation. The system uses adjacency list representation for efficient graph operations and implements several key
-algorithms for alert management.
+- Algorytm przeszukiwania grafu wszerz
+- Zasada działania:
+  - Przeszukuje wszystkie wierzchołki na tym samym poziomie przed przejściem głębiej
+  - Używa kolejki FIFO do przechowywania wierzchołków do odwiedzenia
+  - Zapewnia znalezienie najkrótszej ścieżki w grafie nieważonym
+- Złożoność:
+  - Czasowa: O(V + E), gdzie V to liczba wierzchołków, E to liczba krawędzi
+  - Pamięciowa: O(V)
+- Zastosowania:
+  - Znajdowanie najkrótszej ścieżki w grafie nieważonym
+  - Sprawdzanie spójności grafu
+  - Znajdowanie wszystkich wierzchołków w danej odległości
 
-## Data Structures
+Pseudokod:
 
-### Graph Representation
-
-- **Adjacency List**: `Map<String, Set<String>>`
-    - Key: Service name
-    - Value: Set of dependent services
-- **Reverse Adjacency List**: `Map<String, Set<String>>`
-    - Key: Service name
-    - Value: Set of services that depend on this service
-- **Cache Structures**:
-    - Affected services cache: `Map<String, Set<String>>`
-    - Propagation path cache: `Map<String, List<String>>`
-    - Containment edges cache: `Map<Set<String>, Set<Edge>>`
-
-## Core Algorithms
-
-### 1. Alert Propagation Path (BFS)
-
-```java
-findAlertPropagationPath(sourceService, targetService)
+```
+function BFS(graph, start):
+    queue = new Queue()
+    visited = new Set()
+    queue.enqueue(start)
+    visited.add(start)
+    
+    while queue is not empty:
+        current = queue.dequeue()
+        
+        for neighbor in graph.getNeighbors(current):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.enqueue(neighbor)
 ```
 
-- **Purpose**: Finds the shortest path for alert propagation between two services
-- **Algorithm**: Breadth-First Search (BFS)
-- **Time Complexity**: O(V + E), where V is the number of vertices and E is the number of edges
-- **Space Complexity**: O(V)
-- **Implementation Details**:
-    - Uses a queue for BFS traversal
-    - Maintains a map of previous nodes for path reconstruction
-    - Caches results for repeated queries
-    - Returns empty list if no path exists
+### DFS (Depth-First Search)
 
-### 2. Affected Services Analysis (DFS)
+- Algorytm przeszukiwania grafu w głąb
+- Zasada działania:
+  - Idzie jak najgłębiej wzdłuż każdej ścieżki przed powrotem
+  - Używa stosu (rekurencji) do przechowywania wierzchołków
+  - Może nie znaleźć najkrótszej ścieżki
+- Złożoność:
+  - Czasowa: O(V + E)
+  - Pamięciowa: O(V)
+- Zastosowania:
+  - Sprawdzanie cykli w grafie
+  - Sortowanie topologiczne
+  - Znajdowanie silnie spójnych składowych
 
-```java
-getAffectedServices(serviceName)
+Pseudokod:
+
+```
+function DFS(graph, start):
+    visited = new Set()
+    
+    function dfsRecursive(vertex):
+        visited.add(vertex)
+        
+        for neighbor in graph.getNeighbors(vertex):
+            if neighbor not in visited:
+                dfsRecursive(neighbor)
+    
+    dfsRecursive(start)
 ```
 
-- **Purpose**: Identifies all services that would be affected by an alert in a given service
-- **Algorithm**: Depth-First Search (DFS)
-- **Time Complexity**: O(V + E)
-- **Space Complexity**: O(V)
-- **Implementation Details**:
-    - Uses a stack for DFS traversal
-    - Maintains visited set to avoid cycles
-    - Caches results for repeated queries
-    - Includes the source service in the result set
+### Algorytm Dijkstry
 
-### 3. Containment Edge Suggestion
+- Algorytm znajdowania najkrótszej ścieżki w grafie ważonym
+- Zasada działania:
+  - Używa kolejki priorytetowej do wyboru wierzchołka o najmniejszym koszcie
+  - Aktualizuje koszty dojścia do sąsiadów
+  - Działa tylko dla grafów z nieujemnymi wagami
+- Złożoność:
+  - Czasowa: O((V + E)logV) z użyciem kopca binarnego
+  - Pamięciowa: O(V)
+- Zastosowania:
+  - Routing w sieciach
+  - Planowanie tras
+  - Optymalizacja ścieżek
 
-```java
-suggestContainmentEdges(services)
+Pseudokod:
+
+```
+function Dijkstra(graph, start):
+    distances = new Map() // odległości od startu
+    distances[start] = 0
+    pq = new PriorityQueue()
+    pq.insert(start, 0)
+    
+    while pq is not empty:
+        current = pq.extractMin()
+        
+        for neighbor in graph.getNeighbors(current):
+            newDistance = distances[current] + graph.getWeight(current, neighbor)
+            
+            if newDistance < distances[neighbor]:
+                distances[neighbor] = newDistance
+                pq.insert(neighbor, newDistance)
 ```
 
-- **Purpose**: Identifies edges that could be added to contain an alert within a specific set of services
-- **Algorithm**: Edge Analysis
-- **Time Complexity**: O(V * E)
-- **Space Complexity**: O(E)
-- **Implementation Details**:
-    - Analyzes outgoing edges from the specified service set
-    - Identifies edges that cross the containment boundary
-    - Caches results for repeated queries
-    - Returns set of Edge objects representing suggested containment edges
+### Algorytm A*
 
-### 4. Service Order Reconstruction
+- Algorytm znajdowania najkrótszej ścieżki z heurystyką
+- Zasada działania:
+  - Kombinuje koszt dotychczasowej ścieżki (g(n)) z szacowanym kosztem do celu (h(n))
+  - Używa funkcji f(n) = g(n) + h(n) do wyboru następnego wierzchołka
+  - Wymaga dopuszczalnej heurystyki (nie przeszacowuje kosztu)
+- Złożoność:
+  - Czasowa: O(E), gdzie E to liczba krawędzi
+  - Pamięciowa: O(V)
+- Zastosowania:
+  - Gry komputerowe (pathfinding)
+  - Robotyka
+  - Systemy nawigacji
 
-```java
-reconstructOrder()
+Pseudokod:
+
+```
+function AStar(graph, start, goal):
+    openSet = new PriorityQueue()
+    openSet.insert(start, 0)
+    cameFrom = new Map()
+    
+    gScore = new Map() // koszt ścieżki od startu
+    gScore[start] = 0
+    
+    fScore = new Map() // gScore + heurystyka
+    fScore[start] = heuristic(start, goal)
+    
+    while openSet is not empty:
+        current = openSet.extractMin()
+        
+        if current == goal:
+            return reconstructPath(cameFrom, current)
+            
+        for neighbor in graph.getNeighbors(current):
+            tentativeGScore = gScore[current] + graph.getWeight(current, neighbor)
+            
+            if tentativeGScore < gScore[neighbor]:
+                cameFrom[neighbor] = current
+                gScore[neighbor] = tentativeGScore
+                fScore[neighbor] = gScore[neighbor] + heuristic(neighbor, goal)
+                openSet.insert(neighbor, fScore[neighbor])
 ```
 
-- **Purpose**: Determines the topological order of services based on their dependencies
-- **Algorithm**: Topological Sort (DFS-based)
-- **Time Complexity**: O(V + E)
-- **Space Complexity**: O(V)
-- **Implementation Details**:
-    - Uses DFS with cycle detection
-    - Maintains temporary and permanent visited sets
-    - Throws exception if circular dependencies are detected
-    - Returns services in dependency order (most dependent first)
+## Notacja O i analiza złożoności
 
-## Optimization Techniques
+### Podstawy notacji O
 
-### 1. Caching
+- Notacja O (Big O) opisuje górną granicę złożoności czasowej
+- Ignoruje stałe i mniejsze potęgi
+- Przykłady:
+  - O(1) - stały czas (np. dostęp do elementu w tablicy)
+  - O(log n) - logarytmiczny (np. wyszukiwanie binarne)
+  - O(n) - liniowy (np. przeszukanie tablicy)
+  - O(n log n) - liniowo-logarytmiczny (np. sortowanie)
+  - O(n²) - kwadratowy (np. sortowanie bąbelkowe)
+  - O(2ⁿ) - wykładniczy (np. problem plecakowy)
 
-- **Purpose**: Improve performance for repeated operations
-- **Implementation**:
-    - Separate cache for each operation type
-    - Automatic cache invalidation on network modifications
-    - Thread-safe cache operations
-    - Defensive copying for cache entries
+O(1) - stała
+Najlepsza możliwa złożoność
+Czas wykonania nie zależy od rozmiaru danych
+Przykład: dostęp do elementu tablicy po indeksie
+O(log n) - logarytmiczna
+Bardzo dobra złożoność
+Przykład: wyszukiwanie binarne
+O(n) - liniowa
+Dobra złożoność
+Przykład: nasz BFS, przeglądanie tablicy
+O(n log n) - liniowo-logarytmiczna
+Średnia złożoność
+Przykład: sortowanie przez scalanie
+O(n²) - kwadratowa
+Słaba złożoność
+Przykład: sortowanie bąbelkowe
+O(2ⁿ) - wykładnicza
+Najgorsza złożoność
+Przykład: problem plecakowy (brute force)
+Warto pamiętać, że:
+O(1) < O(log n) < O(n) < O(n log n) < O(n²) < O(2ⁿ)
+Im mniejsza złożoność, tym lepszy algorytm (przy dużych danych)
 
-### 2. Validation
+### Jak obliczać złożoność
 
-- **Purpose**: Ensure data integrity and prevent errors
-- **Implementation**:
-    - Centralized validation logic
-    - Early validation of input parameters
-    - Clear error messages for invalid operations
-    - Consistent validation across all operations
+1. Zidentyfikuj podstawowe operacje:
 
-### 3. Memory Management
+- Przypisania
+- Porównania
+- Operacje matematyczne
+- Dostęp do elementów
 
-- **Purpose**: Optimize memory usage
-- **Implementation**:
-    - Efficient data structure choices
-    - Defensive copying only when necessary
-    - Proper cleanup of temporary data structures
-    - Minimal object creation in hot paths
+2. Zasady obliczania:
 
-## Performance Considerations
+- Sekwencja operacji: O(max(operacja1, operacja2))
+- Pętle: O(n * złożoność_operacji_wewnątrz)
+- Pętle zagnieżdżone: O(n * m)
+- Rekurencja: O(branches^depth)
 
-### Time Complexity
+3. Przykłady obliczania:
+   ```java
+   // O(1) - stała liczba operacji
+   int a = 1;
+   int b = 2;
+   return a + b;
 
-- Graph Operations: O(V + E)
-- Cache Operations: O(1) average case
-- Validation: O(1) average case
-- Memory Operations: O(1) average case
+   // O(n) - pętla wykonuje się n razy
+   for(int i = 0; i < n; i++) {
+       sum += array[i];
+   }
 
-### Space Complexity
+   // O(n²) - zagnieżdżone pętle
+   for(int i = 0; i < n; i++) {
+       for(int j = 0; j < n; j++) {
+           sum += array[i][j];
+       }
+   }
+   ```
 
-- Graph Storage: O(V + E)
-- Cache Storage: O(V + E) worst case
-- Temporary Operations: O(V) worst case
+### Złożoność dla struktur danych
 
-### Optimization Trade-offs
+- Tablica:
+  - Dostęp: O(1)
+  - Wyszukiwanie: O(n)
+  - Wstawianie: O(n)
+  - Usuwanie: O(n)
 
-- Cache memory vs. computation time
-- Validation overhead vs. error prevention
-- Defensive copying vs. memory efficiency
-- Graph representation vs. operation efficiency 
+- Lista połączona:
+  - Dostęp: O(n)
+  - Wyszukiwanie: O(n)
+  - Wstawianie: O(1) - jeśli mamy referencję
+  - Usuwanie: O(1) - jeśli mamy referencję
+
+- HashMap/HashSet:
+  - Dostęp: O(1) średnio, O(n) najgorszy przypadek
+  - Wstawianie: O(1) średnio, O(n) najgorszy przypadek
+  - Usuwanie: O(1) średnio, O(n) najgorszy przypadek
+
+- Drzewo binarne:
+  - Wyszukiwanie: O(log n) - zbalansowane
+  - Wstawianie: O(log n) - zbalansowane
+  - Usuwanie: O(log n) - zbalansowane
+
+### Optymalizacja złożoności
+
+1. Zmniejszanie złożoności:
+
+- Używaj odpowiednich struktur danych
+- Unikaj niepotrzebnych operacji
+- Wykorzystuj cache i memoizację
+- Rozważ algorytmy równoległe
+
+2. Kompromisy:
+
+- Czas vs pamięć
+- Złożoność vs czytelność
+- Optymalizacja vs utrzymanie kodu 

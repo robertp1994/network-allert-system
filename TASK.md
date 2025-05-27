@@ -154,5 +154,3 @@ List<String> ordered = List.of("A", "B", "C", "D");
 - Handling of edge cases
 - Efficiency of your solution
 
-Sources
-[1] Java-homework-assignments.pdf https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/55608005/938e5f44-76e7-449f-9c8d-00bca03f1086/Java-homework-assignments.pdf

@@ -1,131 +1,263 @@
 package com.allert;
 
+import javafx.util.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.*;
 import org.junit.jupiter.params.provider.*;
 
 import java.util.*;
+import java.util.stream.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AlertNetworkImplTest {
-    private AlertNetwork network;
+    private AlertNetwork alertNetwork;
 
     @BeforeEach
     void setUp() {
-        network = new AlertNetworkImpl();
+        alertNetwork = new AlertNetworkImpl();
     }
 
     @Test
     @DisplayName("Should add service successfully")
-    void addService_ValidName_ServiceAdded() {
-        network.addService("service1");
-        assertTrue(network.getDependencies("service1").isEmpty());
-    }
+    void shouldAddServiceSuccessfully() {
+        // Given
+        String serviceName = "service1";
 
-    @ParameterizedTest
-    @NullAndEmptySource
-    @DisplayName("Should throw exception when adding service with invalid name")
-    void addService_InvalidName_ThrowsException(String serviceName) {
-        assertThrows(IllegalArgumentException.class, () -> network.addService(serviceName));
+        // When
+        alertNetwork.addService(serviceName);
+
+        // Then
+        assertTrue(alertNetwork.getDependencies("service1").isEmpty());
     }
 
     @Test
     @DisplayName("Should add dependency between services")
-    void addDependency_ValidServices_DependencyAdded() {
-        network.addService("service1");
-        network.addService("service2");
-        network.addDependency("service1", "service2");
-        
-        Set<String> dependencies = network.getDependencies("service1");
+    void shouldAddDependencyBetweenServices() {
+        // Given
+        alertNetwork.addService("service1");
+        alertNetwork.addService("service2");
+
+        // When
+        alertNetwork.addDependency("service1", "service2");
+
+        // Then
+        List<String> dependencies = alertNetwork.getDependencies("service1");
         assertEquals(1, dependencies.size());
         assertTrue(dependencies.contains("service2"));
     }
 
     @Test
     @DisplayName("Should throw exception when adding dependency to non-existent service")
-    void addDependency_NonExistentService_ThrowsException() {
-        network.addService("service1");
-        assertThrows(IllegalArgumentException.class, () -> network.addDependency("service1", "service2"));
-    }
+    void shouldThrowExceptionWhenAddingDependencyToNonExistentService() {
+        // Given
+        alertNetwork.addService("service1");
 
-    @Test
-    @DisplayName("Should find shortest propagation path")
-    void findAlertPropagationPath_ValidPath_ReturnsPath() {
-        network.addService("A");
-        network.addService("B");
-        network.addService("C");
-        network.addDependency("A", "B");
-        network.addDependency("B", "C");
-
-        List<String> path = network.findAlertPropagationPath("A", "C");
-        assertEquals(Arrays.asList("A", "B", "C"), path);
-    }
-
-    @Test
-    @DisplayName("Should return empty list when no path exists")
-    void findAlertPropagationPath_NoPath_ReturnsEmptyList() {
-        network.addService("A");
-        network.addService("B");
-        network.addService("C");
-        network.addDependency("A", "B");
-
-        List<String> path = network.findAlertPropagationPath("A", "C");
-        assertTrue(path.isEmpty());
-    }
-
-    @Test
-    @DisplayName("Should get all affected services")
-    void getAffectedServices_ValidService_ReturnsAllAffected() {
-        network.addService("A");
-        network.addService("B");
-        network.addService("C");
-        network.addDependency("A", "B");
-        network.addDependency("B", "C");
-
-        Set<String> affected = network.getAffectedServices("A");
-        assertEquals(new HashSet<>(Arrays.asList("A", "B", "C")), affected);
+        // When & Then
+        assertThrows(IllegalArgumentException.class, () -> alertNetwork.addDependency("service1", "service2"));
     }
 
     @Test
     @DisplayName("Should suggest containment edges")
-    void suggestContainmentEdges_ValidServices_ReturnsEdges() {
-        network.addService("A");
-        network.addService("B");
-        network.addService("C");
-        network.addDependency("A", "B");
-        network.addDependency("B", "C");
+    void shouldSuggestContainmentEdges() {
+        // Given
+        alertNetwork.addService("A");
+        alertNetwork.addService("B");
+        alertNetwork.addService("C");
+        alertNetwork.addService("D");
+        alertNetwork.addDependency("A", "B");
+        alertNetwork.addDependency("B", "C");
+        alertNetwork.addDependency("A", "D");
+        alertNetwork.addDependency("D", "C");
 
-        Set<String> services = new HashSet<>(Arrays.asList("A", "B"));
-        Set<AlertPropagation> containmentAlertPropagations = network.suggestContainmentEdges(services);
+        // When
+        List<Pair<String, String>> containmentEdges = alertNetwork.suggestContainmentEdges("A");
 
-        assertEquals(1, containmentAlertPropagations.size());
-        AlertPropagation alertPropagation = containmentAlertPropagations.iterator().next();
-        assertEquals("B", alertPropagation.getSource());
-        assertEquals("C", alertPropagation.getTarget());
+        // Then
+        System.out.printf("Containment Edges: %s%n", containmentEdges);
+        assertEquals(1, containmentEdges.size());
+        assertTrue(containmentEdges.stream().anyMatch(e -> e.getKey().equals("D") && e.getValue().equals("C")));
     }
 
-    @Test
-    @DisplayName("Should reconstruct order correctly")
-    void reconstructOrder_ValidDependencies_ReturnsOrder() {
-        network.addService("A");
-        network.addService("B");
-        network.addService("C");
-        network.addDependency("A", "B");
-        network.addDependency("B", "C");
+    @Nested
+    @DisplayName("Alert Propagation Path Tests")
+    class AlertPropagationPathTests {
 
-        List<String> order = network.reconstructOrder();
-        assertEquals(Arrays.asList("C", "B", "A"), order);
+        private static Stream<Arguments> provideGraphConfigurations() {
+            return Stream.of(
+                    // Test case 1: Simple linear path
+                    Arguments.of(
+                            List.of("A", "B", "C"),
+                            List.of(
+                                    new Pair<>("A", "B"),
+                                    new Pair<>("B", "C")
+                            ),
+                            "A", "C",
+                            List.of("A", "B", "C")
+                    ),
+                    // Test case 2: Diamond shape graph
+                    Arguments.of(
+                            List.of("A", "B", "C", "D"),
+                            List.of(
+                                    new Pair<>("A", "B"),
+                                    new Pair<>("A", "C"),
+                                    new Pair<>("B", "D"),
+                                    new Pair<>("C", "D")
+                            ),
+                            "A", "D",
+                            List.of("A", "B", "D")
+                    ),
+                    // Test case 3: Complex graph with cycles
+                    Arguments.of(
+                            List.of("A", "B", "C", "D", "E"),
+                            List.of(
+                                    new Pair<>("A", "B"),
+                                    new Pair<>("B", "C"),
+                                    new Pair<>("C", "D"),
+                                    new Pair<>("D", "E"),
+                                    new Pair<>("E", "B")
+                            ),
+                            "A", "E",
+                            List.of("A", "B", "C", "D", "E")
+                    )
+            );
+        }
+
+        @ParameterizedTest
+        @DisplayName("Should find path in various graph configurations")
+        @MethodSource("provideGraphConfigurations")
+        void shouldFindPathInVariousGraphConfigurations(
+                List<String> services,
+                List<Pair<String, String>> dependencies,
+                String start,
+                String end,
+                List<String> expectedPath) {
+            // Given
+            services.forEach(alertNetwork::addService);
+            dependencies.forEach(pair ->
+                    alertNetwork.addDependency(pair.getKey(), pair.getValue()));
+
+            // When
+            List<String> path = alertNetwork.findAlertPropagationPath(start, end);
+
+            // Then
+            assertEquals(expectedPath, path);
+        }
+
+        @Test
+        @DisplayName("Should return empty list when no path exists")
+        void shouldReturnEmptyListWhenNoPathExists() {
+            // Given
+            alertNetwork.addService("A");
+            alertNetwork.addService("B");
+            alertNetwork.addService("C");
+            alertNetwork.addDependency("A", "B");
+
+            // When
+            List<String> path = alertNetwork.findAlertPropagationPath("A", "C");
+
+            // Then
+            assertTrue(path.isEmpty());
+        }
+
+        @Test
+        @DisplayName("Should throw exception when service does not exist")
+        void shouldThrowExceptionWhenServiceDoesNotExist() {
+            // Given
+            alertNetwork.addService("A");
+
+            // When & Then
+            assertThrows(IllegalArgumentException.class,
+                    () -> alertNetwork.findAlertPropagationPath("A", "B"));
+        }
     }
 
-    @Test
-    @DisplayName("Should throw exception when circular dependency detected")
-    void reconstructOrder_CircularDependency_ThrowsException() {
-        network.addService("A");
-        network.addService("B");
-        network.addDependency("A", "B");
-        network.addDependency("B", "A");
+    @Nested
+    @DisplayName("Get Affected Services Tests")
+    class GetAffectedServicesTests {
 
-        assertThrows(IllegalStateException.class, () -> network.reconstructOrder());
+        private static Stream<Arguments> provideGraphConfigurations() {
+            return Stream.of(
+                    // Test case 1: Simple linear path
+                    Arguments.of(
+                            List.of("A", "B", "C"),
+                            List.of(
+                                    new Pair<>("A", "B"),
+                                    new Pair<>("B", "C")
+                            ),
+                            "A",
+                            List.of("A", "B", "C")
+                    ),
+                    // Test case 2: Complex graph with multiple paths
+                    Arguments.of(
+                            List.of("A", "B", "C", "D", "E"),
+                            List.of(
+                                    new Pair<>("A", "B"),
+                                    new Pair<>("A", "C"),
+                                    new Pair<>("B", "D"),
+                                    new Pair<>("C", "D"),
+                                    new Pair<>("D", "E")
+                            ),
+                            "A",
+                            List.of("A", "B", "C", "D", "E")
+                    ),
+                    // Test case 3: Graph with isolated components
+                    Arguments.of(
+                            List.of("A", "B", "C", "D"),
+                            List.of(
+                                    new Pair<>("A", "B"),
+                                    new Pair<>("C", "D")
+                            ),
+                            "A",
+                            List.of("A", "B")
+                    )
+            );
+        }
+
+        @Test
+        @DisplayName("Should return only source service when no dependencies exist")
+        void shouldReturnOnlySourceServiceWhenNoDependenciesExist() {
+            // Given
+            alertNetwork.addService("A");
+            alertNetwork.addService("B");
+            alertNetwork.addService("C");
+
+            // When
+            List<String> affected = alertNetwork.getAffectedServices("A");
+
+            // Then
+            assertEquals(List.of("A"), affected);
+        }
+
+        @Test
+        @DisplayName("Should throw exception when service does not exist")
+        void shouldThrowExceptionWhenServiceDoesNotExist() {
+            // Given
+            alertNetwork.addService("A");
+
+            // When & Then
+            assertThrows(IllegalArgumentException.class,
+                    () -> alertNetwork.getAffectedServices("B"));
+        }
+
+        @ParameterizedTest
+        @DisplayName("Should get affected services in various graph configurations")
+        @MethodSource("provideGraphConfigurations")
+        void shouldGetAffectedServicesInVariousGraphConfigurations(
+                List<String> services,
+                List<Pair<String, String>> dependencies,
+                String source,
+                List<String> expectedAffected) {
+            // Given
+            services.forEach(alertNetwork::addService);
+            dependencies.forEach(pair ->
+                    alertNetwork.addDependency(pair.getKey(), pair.getValue()));
+
+            // When
+            List<String> affected = alertNetwork.getAffectedServices(source);
+
+            // Then
+            assertEquals(expectedAffected, affected);
+        }
     }
 } 
