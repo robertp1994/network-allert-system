@@ -68,25 +68,22 @@ public class AlertNetworkImpl implements AlertNetwork {
         validator.validateServiceName(source);
         validator.validateServiceExists(source);
 
-        Set<String> affected = new HashSet<>();
         Set<String> visited = new HashSet<>();
         Deque<String> stack = new ArrayDeque<>();
 
         stack.push(source);
         visited.add(source);
-        affected.add(source);
 
         while (!stack.isEmpty()) {
             String current = stack.pop();
             serviceDependencies.get(current).stream()
                     .filter(dependency -> !visited.contains(dependency)).forEach(dependency -> {
                         visited.add(dependency);
-                        affected.add(dependency);
                         stack.push(dependency);
                     });
         }
 
-        return affected.stream().toList();
+        return visited.stream().toList();
     }
 
     @Override
@@ -126,7 +123,10 @@ public class AlertNetworkImpl implements AlertNetwork {
 
         return edgeDownstreamCount.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
-                .map(entry -> List.of(entry.getKey()))
+                .map(maxEntry -> edgeDownstreamCount.entrySet().stream()
+                        .filter(entry -> entry.getValue().equals(maxEntry.getValue()))
+                        .map(Map.Entry::getKey)
+                        .toList())
                 .orElse(List.of());
     }
 

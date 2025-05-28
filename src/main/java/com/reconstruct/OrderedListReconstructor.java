@@ -3,7 +3,6 @@ package com.reconstruct;
 import lombok.*;
 
 import java.util.*;
-import java.util.stream.*;
 
 @AllArgsConstructor(access = lombok.AccessLevel.PRIVATE)
 public class OrderedListReconstructor {
@@ -19,15 +18,7 @@ public class OrderedListReconstructor {
             nextMap.put(pair.get(0), pair.get(1));
         }
 
-        Set<String> nextValues = nextMap.values().stream()
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        // Find the first element (the one that's not a next value)
-        String current = nextMap.keySet().stream()
-                .filter(value -> !nextValues.contains(value))
-                .findFirst()
-                .orElse(null);
+        String current = getFirstElement(nextMap);
 
         if (current == null) {
             return Collections.emptyList();
@@ -41,5 +32,17 @@ public class OrderedListReconstructor {
         }
 
         return result;
+    }
+
+    private static String getFirstElement(Map<String, String> nextMap) {
+        java.util.Set<String> nextValues = nextMap.values().stream()
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // Find the first element (the one that's not a next value)
+        return nextMap.keySet().stream()
+                .filter(value -> !nextValues.contains(value))
+                .findFirst()
+                .orElse(null);
     }
 }

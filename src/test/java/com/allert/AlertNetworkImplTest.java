@@ -57,27 +57,7 @@ class AlertNetworkImplTest {
         assertThrows(IllegalArgumentException.class, () -> alertNetwork.addDependency("service1", "service2"));
     }
 
-    @Test
-    @DisplayName("Should suggest containment edges")
-    void shouldSuggestContainmentEdges() {
-        // Given
-        alertNetwork.addService("A");
-        alertNetwork.addService("B");
-        alertNetwork.addService("C");
-        alertNetwork.addService("D");
-        alertNetwork.addDependency("A", "B");
-        alertNetwork.addDependency("B", "C");
-        alertNetwork.addDependency("A", "D");
-        alertNetwork.addDependency("D", "C");
 
-        // When
-        List<Pair<String, String>> containmentEdges = alertNetwork.suggestContainmentEdges("A");
-
-        // Then
-        System.out.printf("Containment Edges: %s%n", containmentEdges);
-        assertEquals(1, containmentEdges.size());
-        assertTrue(containmentEdges.stream().anyMatch(e -> e.getKey().equals("D") && e.getValue().equals("C")));
-    }
 
     @Nested
     @DisplayName("Alert Propagation Path Tests")
@@ -259,5 +239,58 @@ class AlertNetworkImplTest {
             // Then
             assertEquals(expectedAffected, affected);
         }
+    }
+
+    @Test
+    @DisplayName("Should suggest containment edges")
+    void shouldSuggestContainmentEdges() {
+        // Given
+        alertNetwork.addService("A");
+        alertNetwork.addService("B");
+        alertNetwork.addService("C");
+        alertNetwork.addService("D");
+        alertNetwork.addDependency("A", "B");
+        alertNetwork.addDependency("B", "C");
+        alertNetwork.addDependency("A", "D");
+        alertNetwork.addDependency("D", "C");
+
+        // When
+        List<Pair<String, String>> containmentEdges = alertNetwork.suggestContainmentEdges("A");
+
+        // Then
+        assertEquals(2, containmentEdges.size());
+        assertTrue(containmentEdges.stream().anyMatch(e -> e.getKey().equals("D") && e.getValue().equals("C")));
+    }
+
+    @Test
+    @DisplayName("Should suggest containment edges for graph with cycle")
+    void shouldSuggestContainmentEdgesForGraphWithCycle() {
+        // Given
+        alertNetwork.addService("A");
+        alertNetwork.addService("B");
+        alertNetwork.addService("C");
+        alertNetwork.addService("D");
+        alertNetwork.addService("E");
+        alertNetwork.addService("F");
+        alertNetwork.addService("G");
+
+        alertNetwork.addDependency("A", "B");
+        alertNetwork.addDependency("A", "C");
+        alertNetwork.addDependency("A", "G");
+
+        alertNetwork.addDependency("B", "C");
+
+        alertNetwork.addDependency("C", "D");
+        alertNetwork.addDependency("C", "E");
+
+        alertNetwork.addDependency("D", "F");
+        alertNetwork.addDependency("D", "B");
+
+        // When
+        List<Pair<String, String>> containmentEdges = alertNetwork.suggestContainmentEdges("A");
+
+        // Then
+        assertEquals(3, containmentEdges.size());
+        assertTrue(containmentEdges.stream().anyMatch(e -> e.getKey().equals("C") && e.getValue().equals("D")));
     }
 } 
