@@ -54,11 +54,13 @@ public class AlertNetworkImpl implements AlertNetwork {
             if (current.equals(target)) {
                 return reconstructPath(previous, target);
             }
-            serviceDependencies.get(current).stream().filter(dependency -> !visited.contains(dependency)).forEach(dependency -> {
-                visited.add(dependency);
-                previous.put(dependency, current);
-                queue.offer(dependency);
-            });
+            serviceDependencies.get(current).stream()
+                    .filter(dependency -> !visited.contains(dependency))
+                    .forEach(dependency -> {
+                        visited.add(dependency);
+                        previous.put(dependency, current);
+                        queue.offer(dependency);
+                    });
         }
         return Collections.emptyList();
     }
